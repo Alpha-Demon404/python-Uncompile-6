@@ -127,6 +127,7 @@ class Python37BaseParser(PythonParser):
                 "RAISE",
                 "SETUP",
                 "UNPACK",
+                "WITH"
             )
         )
 
@@ -969,11 +970,18 @@ class Python37BaseParser(PythonParser):
                 )
                 custom_ops_processed.add(opname)
 
+
             elif opname == "SETUP_EXCEPT":
                 self.addRule(
                     """
                     try_except     ::= SETUP_EXCEPT suite_stmts_opt POP_BLOCK
                                        except_handler opt_come_from_except
+                    c_try_except   ::= SETUP_EXCEPT c_suite_stmts POP_BLOCK
+                                       c_except_handler opt_come_from_except
+                    stmt           ::= tryelsestmt3
+                    tryelsestmt3   ::= SETUP_EXCEPT suite_stmts_opt POP_BLOCK
+                                       except_handler COME_FROM else_suite
+                                       opt_come_from_except
 
                     tryelsestmt    ::= SETUP_EXCEPT suite_stmts_opt POP_BLOCK
                                        except_handler else_suite come_from_except_clauses
@@ -981,67 +989,106 @@ class Python37BaseParser(PythonParser):
                     tryelsestmt    ::= SETUP_EXCEPT suite_stmts_opt POP_BLOCK
                                        except_handler else_suite come_froms
 
-                    tryelsestmtl   ::= SETUP_EXCEPT suite_stmts_opt POP_BLOCK
-                                       except_handler else_suitel come_from_except_clauses
-
-                    stmt             ::= tryelsestmtl3
-                    tryelsestmtl3    ::= SETUP_EXCEPT suite_stmts_opt POP_BLOCK
-                                         except_handler COME_FROM else_suitel
-                                         opt_come_from_except
+                    c_stmt         ::= c_tryelsestmt
+                    c_tryelsestmt  ::= SETUP_EXCEPT c_suite_stmts POP_BLOCK
+                                       c_except_handler
+                                       come_any_froms else_suitec
+                                       come_from_except_clauses
                     """,
                     nop_func,
                 )
                 custom_ops_processed.add(opname)
 
+            elif opname == "WITH_CLEANUP_START":
+                rules_str = """
+                  stmt        ::= with_null
+                  with_null   ::= with_suffix
+                  with_suffix ::= WITH_CLEANUP_START WITH_CLEANUP_FINISH END_FINALLY
+                """
+                self.addRule(rules_str, nop_func)
             elif opname == "SETUP_WITH":
                 rules_str = """
-                  stmt       ::= with
-                  stmt       ::= withasstmt
+                  stmt        ::= with
+                  stmt        ::= withasstmt
+                  c_stmt      ::= c_with
 
-                  with       ::= expr SETUP_WITH POP_TOP suite_stmts_opt COME_FROM_WITH
-                                 WITH_CLEANUP_START WITH_CLEANUP_FINISH END_FINALLY
-                  withasstmt ::= expr SETUP_WITH store suite_stmts_opt COME_FROM_WITH
-                                 WITH_CLEANUP_START WITH_CLEANUP_FINISH END_FINALLY
+                  c_with      ::= expr SETUP_WITH POP_TOP
+                                  c_suite_stmts_opt
+                                  COME_FROM_WITH
+                                  with_suffix
+                  c_with      ::= expr SETUP_WITH POP_TOP
+                                  c_suite_stmts_opt
+                                  POP_BLOCK LOAD_CONST COME_FROM_WITH
+                                  with_suffix
 
-                  with       ::= expr
-                                 SETUP_WITH POP_TOP suite_stmts_opt
-                                 POP_BLOCK LOAD_CONST COME_FROM_WITH
-                                 WITH_CLEANUP_START WITH_CLEANUP_FINISH END_FINALLY
-                  withasstmt ::= expr
-                                 SETUP_WITH store suite_stmts_opt
-                                 POP_BLOCK LOAD_CONST COME_FROM_WITH
-                                 WITH_CLEANUP_START WITH_CLEANUP_FINISH END_FINALLY
+                  with        ::= expr SETUP_WITH POP_TOP
+                                  suite_stmts_opt
+                                  COME_FROM_WITH
+                                  with_suffix
 
-                  with       ::= expr
-                                 SETUP_WITH POP_TOP suite_stmts_opt
-                                 POP_BLOCK LOAD_CONST COME_FROM_WITH
-                                 WITH_CLEANUP_START WITH_CLEANUP_FINISH END_FINALLY
-                  withasstmt ::= expr
-                                 SETUP_WITH store suite_stmts_opt
-                                 POP_BLOCK LOAD_CONST COME_FROM_WITH
-                                 WITH_CLEANUP_START WITH_CLEANUP_FINISH END_FINALLY
+                  withasstmt  ::= expr SETUP_WITH store suite_stmts_opt COME_FROM_WITH
+                                  with_suffix
+
+                  with        ::= expr
+                                  SETUP_WITH POP_TOP suite_stmts_opt
+                                  POP_BLOCK LOAD_CONST COME_FROM_WITH
+                                  with_suffix
+                  withasstmt  ::= expr
+                                  SETUP_WITH store suite_stmts_opt
+                                  POP_BLOCK LOAD_CONST COME_FROM_WITH
+                                  with_suffix
+
+                  with        ::= expr
+                                  SETUP_WITH POP_TOP suite_stmts_opt
+                                  POP_BLOCK LOAD_CONST COME_FROM_WITH
+                                  with_suffix
+                  withasstmt  ::= expr
+                                  SETUP_WITH store suite_stmts_opt
+                                  POP_BLOCK LOAD_CONST COME_FROM_WITH
+                                  with_suffix
                 """
                 if self.version < 3.8:
                     rules_str += """
-                    with     ::= expr SETUP_WITH POP_TOP suite_stmts_opt POP_BLOCK
+                    with      ::= expr SETUP_WITH POP_TOP suite_stmts_opt POP_BLOCK
                                    LOAD_CONST
-                                   WITH_CLEANUP_START WITH_CLEANUP_FINISH END_FINALLY
+                                   with_suffix
                     """
                 else:
                     rules_str += """
-                      with    ::= expr
+                     # A return at the end of a withas stmt can be this.
+                     # FIXME: should this be a different kind of return?
+                     return      ::= ret_expr POP_BLOCK
+                                     ROT_TWO
+                                     BEGIN_FINALLY
+                                     WITH_CLEANUP_START
+                                     WITH_CLEANUP_FINISH
+                                     POP_FINALLY
+                                     RETURN_VALUE
+
+                      with       ::= expr
                                      SETUP_WITH POP_TOP suite_stmts_opt
                                      POP_BLOCK LOAD_CONST COME_FROM_WITH
-                                     WITH_CLEANUP_START WITH_CLEANUP_FINISH END_FINALLY
+                                     with_suffix
+
 
                       withasstmt ::= expr
-                                     SETUP_WITH store suite_stmts_opt
+                                     SETUP_WITH store suite_stmts
                                      POP_BLOCK LOAD_CONST COME_FROM_WITH
 
-                       with    ::= expr SETUP_WITH POP_TOP suite_stmts_opt POP_BLOCK
-                                     BEGIN_FINALLY COME_FROM_WITH
-                                     WITH_CLEANUP_START WITH_CLEANUP_FINISH
-                                     END_FINALLY
+                      withasstmt ::= expr
+                                     SETUP_WITH store suite_stmts
+                                     POP_BLOCK BEGIN_FINALLY COME_FROM_WITH
+                                     with_suffix
+
+                      # withasstmt ::= expr SETUP_WITH store suite_stmts
+                      #                COME_FROM expr COME_FROM POP_BLOCK ROT_TWO
+                      #                BEGIN_FINALLY WITH_CLEANUP_START WITH_CLEANUP_FINISH
+                      #                POP_FINALLY RETURN_VALUE COME_FROM_WITH
+                      #                WITH_CLEANUP_START WITH_CLEANUP_FINISH END_FINALLY
+
+                      with         ::= expr SETUP_WITH POP_TOP suite_stmts_opt POP_BLOCK
+                                       BEGIN_FINALLY COME_FROM_WITH
+                                       with_suffix
                     """
                 self.addRule(rules_str, nop_func)
 

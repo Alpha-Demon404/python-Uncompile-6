@@ -1,7 +1,5 @@
 SKIP_TESTS=(
-    [test_mimetypes.py]=1 # parse error. decompile3 works. Release 3.6.4 works?
     [test_time.py]=1 # FIXME: parse eror. decompyle3 works. Release 3.6.4 works?
-    [test_aifc.py]=1 # parse error; decompile3 works
 
     [test_doctest2.py]=1 # test failures release 3.6.4 works?
     [test_finalization.py]=1  # test failures release 3.6.4 works?
