@@ -381,10 +381,10 @@ class TreeTransform(GenericASTTraversal, object):
 
     def n_stmts(self, node):
         if node.first_child() == "SETUP_ANNOTATIONS":
-            prev = node[0][0]
+            prev = node[0]
             new_stmts = [node[0]]
             for i, sstmt in enumerate(node[1:]):
-                ann_assign = sstmt[0][0]
+                ann_assign = sstmt[0]
                 if (
                     sstmt[0] == "stmt"
                     and ann_assign == "ann_assign"
@@ -413,6 +413,7 @@ class TreeTransform(GenericASTTraversal, object):
         self.maybe_show_tree(ast)
         self.ast = copy(ast)
         self.ast = self.traverse(self.ast, is_lambda=False)
+        n = len(self.ast)
 
         try:
             # Disambiguate a string (expression) which appears as a "call_stmt" at
@@ -427,11 +428,7 @@ class TreeTransform(GenericASTTraversal, object):
             pass
 
         try:
-            for i in range(len(self.ast)):
-                sstmt = ast[i]
-                if len(sstmt) == 1 and sstmt == "sstmt":
-                    ast[i] = ast[i][0]
-
+            for i in range(n):
                 if is_docstring(self.ast[i]):
                     docstring_ast = SyntaxTree(
                         "docstring",

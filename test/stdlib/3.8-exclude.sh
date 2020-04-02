@@ -1,7 +1,6 @@
 SKIP_TESTS=(
     [test_time.py]=1 # FIXME: parse eror. decompyle3 works. Release 3.6.4 works?
 
-    [test_doctest2.py]=1 # test failures release 3.6.4 works?
     [test_finalization.py]=1  # test failures release 3.6.4 works?
     [test_urllib2.py]=1 # FIXME: works on uncompyle6?
     [test_zipimport.py]=1 # FIXME: works on uncompyle6
@@ -78,7 +77,6 @@ SKIP_TESTS=(
     [test_difflib.py]=1   # parse error
     [test_dis.py]=1   # We change line numbers - duh!
     [test_doctest.py]=1 # parse error
-    [test_doctest2.py]=1 # test faiures relesae 3.6.4 works?
     [test_docxmlrpc.py]=1
     [test_dtrace.py]=1 # parse error
     [test_dummy_thread.py]=1 # parse error

@@ -2273,13 +2273,13 @@ class SourceWalker(GenericASTTraversal, object):
         code._tokens = None  # save memory
         assert ast == "stmts"
 
-        if ast[0] == "sstmt":
-            ast[0] = ast[0][0]
-        first_stmt = ast[0]
-
         if ast[0] == "docstring":
             self.println(self.traverse(ast[0]))
             del ast[0]
+
+        if ast[0] == "sstmt":
+            ast[0] = ast[0][0]
+        first_stmt = ast[0]
 
         if 3.0 <= self.version <= 3.3:
             try:
